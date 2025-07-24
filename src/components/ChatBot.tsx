@@ -39,6 +39,8 @@ export const ChatBot = () => {
 
   const callGooglePalmAPI = async (prompt: string): Promise<string> => {
     try {
+      console.log('Making API call to Google AI...');
+      
       const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GOOGLE_PALM_API_KEY}`, {
         method: 'POST',
         headers: {
@@ -69,12 +71,47 @@ User question: ${prompt}`
         }),
       });
 
+      console.log('API Response status:', response.status);
+      
+      if (!response.ok) {
+        throw new Error(`API request failed with status ${response.status}`);
+      }
+
       const data = await response.json();
+      console.log('API Response data:', data);
+      
       return data.candidates?.[0]?.content?.parts?.[0]?.text || "I'm sorry, I couldn't process that request. Please try again.";
     } catch (error) {
-      console.error('Error calling Google PaLM API:', error);
-      return "I'm experiencing technical difficulties. Please try again later or call our clinic directly at (555) 123-DENTAL.";
+      console.error('Error calling Google AI API:', error);
+      
+      // Fallback to simple FAQ responses if API fails
+      return getSimpleFAQResponse(prompt);
     }
+  };
+
+  const getSimpleFAQResponse = (prompt: string): string => {
+    const message = prompt.toLowerCase();
+    
+    if (message.includes('hour') || message.includes('time') || message.includes('open')) {
+      return "We're open Monday-Friday 8AM-6PM, Saturday 9AM-4PM. Closed Sundays.";
+    }
+    if (message.includes('service') || message.includes('treatment')) {
+      return "We offer general dentistry, cosmetic procedures, orthodontics, oral surgery, and emergency care.";
+    }
+    if (message.includes('insurance') || message.includes('coverage')) {
+      return "We accept most major insurance plans. Please call to verify your specific coverage.";
+    }
+    if (message.includes('emergency') || message.includes('urgent')) {
+      return "For dental emergencies, call our 24/7 hotline or visit our emergency page.";
+    }
+    if (message.includes('location') || message.includes('address') || message.includes('where')) {
+      return "We're located at 123 Dental Way, Health City. Free parking available.";
+    }
+    if (message.includes('price') || message.includes('cost') || message.includes('fee')) {
+      return "Prices vary by service. Cleanings start at $120, fillings from $150. We offer payment plans.";
+    }
+    
+    return "I can help you with information about our clinic hours, services, insurance, pricing, location, or booking appointments. What would you like to know?";
   };
 
   const checkCalcomAvailability = async () => {
@@ -117,6 +154,8 @@ You can choose from available slots and the booking will be confirmed automatica
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isLoading) return;
 
+    console.log('Sending message:', inputValue);
+    
     const userMessage = inputValue;
     addMessage(userMessage, 'user');
     setInputValue("");
@@ -127,14 +166,17 @@ You can choose from available slots and the booking will be confirmed automatica
       if (userMessage.toLowerCase().includes('book') || 
           userMessage.toLowerCase().includes('appointment') || 
           userMessage.toLowerCase().includes('schedule')) {
+        console.log('Handling booking request...');
         const bookingResponse = await handleBookingRequest();
         addMessage(bookingResponse, 'bot');
       } else {
-        // Use Google PaLM API for general questions
+        // Use Google AI API for general questions
+        console.log('Calling Google AI API...');
         const aiResponse = await callGooglePalmAPI(userMessage);
         addMessage(aiResponse, 'bot');
       }
     } catch (error) {
+      console.error('Error in handleSendMessage:', error);
       addMessage("I apologize for the technical issue. Please try again or call our clinic at (555) 123-DENTAL.", 'bot');
     } finally {
       setIsLoading(false);
